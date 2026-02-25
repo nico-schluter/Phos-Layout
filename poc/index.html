@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phos Layout — POC</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <div id="toolbar">
+            <h1>Phos Layout</h1>
+            <div class="toolbar-group">
+                <label class="toolbar-label">Circuit
+                    <select id="dataset-select">
+                        <option value="ldo">Linear Regulator</option>
+                        <option value="mcu">MCU Board</option>
+                    </select>
+                </label>
+                <div class="separator"></div>
+                <label class="slider-label">
+                    Repulsion
+                    <input type="range" id="slider-repulsion" min="0" max="200" value="50">
+                    <span id="repulsion-value">50</span>
+                </label>
+                <div class="separator"></div>
+                <label class="toolbar-label">Align N-way
+                    <select id="select-nway">
+                        <option value="3">3 (120°)</option>
+                        <option value="4" selected>4 (90°)</option>
+                        <option value="8">8 (45°)</option>
+                    </select>
+                </label>
+                <label class="slider-label">
+                    Grid
+                    <input type="number" id="input-grid" value="1.27" min="0.1" max="10" step="0.01" class="num-input">
+                    <span>mm</span>
+                </label>
+            </div>
+            <div class="toolbar-group">
+                <button id="btn-reset" title="Reset positions and rotations">↺ Reset</button>
+                <button id="btn-spectral" title="Re-place components using spectral graph analysis (Fiedler vector)">Spectral</button>
+                <button id="btn-voronoi" class="toggle-btn" title="Show Voronoi diagram — highlights boundaries between different nets">Voronoi</button>
+                <span id="status-text">Click to select, drag to move</span>
+            </div>
+        </div>
+        <div id="main-area">
+            <canvas id="canvas"></canvas>
+            <div id="net-panel">
+                <h2>Net Forces</h2>
+                <p class="panel-hint">Adjust attraction strength per net. Set to 0 to disable.</p>
+                <div class="net-panel-actions">
+                    <button id="btn-disable-power" class="small-btn" title="Set GND and power nets to 0">Disable Power</button>
+                    <button id="btn-reset-forces" class="small-btn" title="Reset all net forces to default">Reset All</button>
+                </div>
+                <div id="net-list"></div>
+
+                <details id="settings-panel" class="settings-section">
+                    <summary class="settings-header">⚙ Simulation Settings</summary>
+
+                    <div class="settings-group">
+                        <div class="settings-group-title">Temperature</div>
+                        <label class="setting-row">
+                            <span class="setting-label">Base temperature</span>
+                            <input type="number" id="set-base-temp" step="0.01" min="0" max="2" class="setting-input">
+                        </label>
+                        <label class="setting-row">
+                            <span class="setting-label">Charge rate</span>
+                            <input type="number" id="set-temp-ramp" step="0.01" min="0.01" max="5" class="setting-input">
+                            <span class="setting-unit">/s</span>
+                        </label>
+                        <label class="setting-row">
+                            <span class="setting-label">Discharge rate</span>
+                            <input type="number" id="set-temp-decay" step="0.01" min="0.01" max="5" class="setting-input">
+                            <span class="setting-unit">/s</span>
+                        </label>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-group-title">Forces</div>
+                        <label class="setting-row">
+                            <span class="setting-label">Attraction</span>
+                            <input type="number" id="set-attraction" step="0.005" min="0" max="1" class="setting-input">
+                        </label>
+                        <label class="setting-row">
+                            <span class="setting-label">Repulsion</span>
+                            <input type="number" id="set-repulsion" step="0.05" min="0" max="10" class="setting-input">
+                        </label>
+                        <label class="setting-row">
+                            <span class="setting-label">Gravity</span>
+                            <input type="number" id="set-gravity" step="0.001" min="0" max="0.1" class="setting-input">
+                        </label>
+                        <label class="setting-row">
+                            <span class="setting-label">Damping</span>
+                            <input type="number" id="set-damping" step="0.01" min="0" max="1" class="setting-input">
+                        </label>
+                        <label class="setting-row">
+                            <span class="setting-label">Time step (dt)</span>
+                            <input type="number" id="set-dt" step="0.05" min="0.05" max="2" class="setting-input">
+                        </label>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-group-title">Stress &amp; Crossing</div>
+                        <label class="setting-row">
+                            <span class="setting-label">Stress strength</span>
+                            <input type="number" id="set-stress" step="0.005" min="0" max="0.5" class="setting-input">
+                        </label>
+                        <label class="setting-row">
+                            <span class="setting-label">Stress spacing</span>
+                            <input type="number" id="set-stress-spacing" step="0.5" min="1" max="50" class="setting-input">
+                            <span class="setting-unit">mm</span>
+                        </label>
+                        <label class="setting-row">
+                            <span class="setting-label">Crossing penalty</span>
+                            <input type="number" id="set-crossing" step="0.05" min="0" max="5" class="setting-input">
+                        </label>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-group-title">Rotation &amp; Alignment</div>
+                        <label class="setting-row">
+                            <span class="setting-label">Rotation damping</span>
+                            <input type="number" id="set-rot-damp" step="0.01" min="0" max="1" class="setting-input">
+                        </label>
+                        <label class="setting-row">
+                            <span class="setting-label">Torque scale</span>
+                            <input type="number" id="set-torque-scale" step="0.001" min="0" max="0.1" class="setting-input">
+                        </label>
+                        <label class="setting-row">
+                            <span class="setting-label">Dipole strength</span>
+                            <input type="number" id="set-dipole" step="0.005" min="0" max="0.5" class="setting-input">
+                        </label>
+                        <label class="setting-row">
+                            <span class="setting-label">Direction strength</span>
+                            <input type="number" id="set-dir-strength" step="0.01" min="0" max="1" class="setting-input">
+                        </label>
+                        <label class="setting-row">
+                            <span class="setting-label">Grid strength</span>
+                            <input type="number" id="set-grid-strength" step="0.05" min="0" max="2" class="setting-input">
+                        </label>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-group-title">Misc</div>
+                        <label class="setting-row">
+                            <span class="setting-label">Clearance margin</span>
+                            <input type="number" id="set-clearance" step="0.5" min="0" max="10" class="setting-input">
+                            <span class="setting-unit">mm</span>
+                        </label>
+                        <label class="setting-row">
+                            <span class="setting-label">Spectral spread</span>
+                            <input type="number" id="set-spectral-spread" step="5" min="10" max="200" value="40" class="setting-input">
+                            <span class="setting-unit">mm</span>
+                        </label>
+                    </div>
+                </details>
+            </div>
+        </div>
+        <div id="shortcuts-bar">
+            <span><kbd>Shift</kbd>+L: Simulate</span>
+            <span><kbd>Shift</kbd>+R: Ramp temp</span>
+            <span><kbd>Alt</kbd>+L: Align direction</span>
+            <span><kbd>Alt</kbd>+R: Align grid</span>
+            <span>Scroll (w/ mod): Brush size</span>
+            <span><kbd>R</kbd> Rotate 90°</span>
+            <span><kbd>Esc</kbd> Deselect</span>
+            <span>Middle: Pan</span>
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# Ignore current markdown files but allow future ones like README.md
+designRequirements.md
+feedback_r1.md
+feedback_r2.md
+refinedRequirements.md
